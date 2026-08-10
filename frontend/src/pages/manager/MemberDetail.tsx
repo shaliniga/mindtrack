@@ -1,0 +1,175 @@
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Activity, AlertTriangle, Calendar, Heart } from 'lucide-react';
+import { Button, Card, Table, PageHeader, MoodScore } from '@/components';
+import { ManagerLayout } from '@/layouts';
+import type { Column } from '@/components';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface MemberLog {
+  id: string;
+  date: string;
+  mood: number;
+  stress: number;
+  energy: number;
+  sleep: number;
+}
+
+const MOCK_MEMBER_LOGS: MemberLog[] = [
+  { id: '1', date: '2026-08-08', mood: 2, stress: 4, energy: 2, sleep: 5.5 },
+  { id: '2', date: '2026-08-07', mood: 2, stress: 5, energy: 1, sleep: 5.0 },
+  { id: '3', date: '2026-08-06', mood: 3, stress: 3, energy: 3, sleep: 6.5 },
+  { id: '4', date: '2026-08-05', mood: 2, stress: 4, energy: 2, sleep: 6.0 },
+  { id: '5', date: '2026-08-04', mood: 3, stress: 3, energy: 3, sleep: 7.0 },
+  { id: '6', date: '2026-08-03', mood: 4, stress: 2, energy: 4, sleep: 7.5 },
+  { id: '7', date: '2026-08-02', mood: 4, stress: 1, energy: 4, sleep: 8.0 },
+];
+
+export default function MemberDetail() {
+  const { id }   = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const name       = id === 'emp-2' ? 'Emily Davis' : 'Alex Johnson';
+  const roleTitle  = 'Software Engineer';
+  const department = 'Engineering';
+
+  const chartData = [...MOCK_MEMBER_LOGS].reverse().map((log) => ({
+    date:   log.date.split('-')[2],
+    Mood:   log.mood,
+    Stress: log.stress,
+    Energy: log.energy,
+  }));
+
+  const columns: Column<MemberLog>[] = [
+    {
+      key: 'date',
+      header: 'Check-in Date',
+      render: (v) => (
+        <span className="font-bold text-zinc-900 flex items-center gap-2">
+          <Calendar size={14} className="text-zinc-400" />
+          {v as string}
+        </span>
+      ),
+    },
+    { key: 'mood',   header: 'Mood Score',   render: (v) => <MoodScore score={v as number} showLabel /> },
+    {
+      key: 'stress',
+      header: 'Stress Level',
+      render: (v) => (
+        <span className="inline-flex items-center gap-1 font-semibold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full text-xs">
+          {v as number} / 5
+        </span>
+      ),
+    },
+    {
+      key: 'energy',
+      header: 'Energy Level',
+      render: (v) => (
+        <span className="inline-flex items-center gap-1 font-semibold text-[#00C853] bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs">
+          {v as number} / 5
+        </span>
+      ),
+    },
+    { key: 'sleep',  header: 'Sleep Duration', render: (v) => <span className="font-medium text-zinc-700">{v as number} hrs</span> },
+  ];
+
+  return (
+    <ManagerLayout>
+      <div className="flex w-full flex-col gap-6 animate-fadeIn">
+        <PageHeader
+          title={`Team Member: ${name}`}
+          subtitle={`${roleTitle} · ${department} Division`}
+          backButton={
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<ArrowLeft size={15} />}
+              onClick={() => navigate('/manager')}
+              className="text-zinc-600 hover:text-zinc-900 font-semibold !pl-0"
+            >
+              Back to Team Overview
+            </Button>
+          }
+        />
+
+        {/* ── Summary Stats (grid-cols-1 sm:grid-cols-3 gap-6) ── */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <Card className="flex items-center gap-6 p-8">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-[#00C853] flex items-center justify-center shrink-0">
+              <Heart size={22} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">7-Day Avg Mood</span>
+              <div className="text-xl font-extrabold text-zinc-900 mt-1 flex items-center gap-2">
+                <MoodScore score={2.6} size="lg" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="flex items-center gap-6 p-8">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <Activity size={22} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Average Stress</span>
+              <span className="text-xl font-extrabold text-rose-600 mt-1">3.8 / 5</span>
+            </div>
+          </Card>
+
+          <Card className="flex items-center gap-6 p-8">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <AlertTriangle size={22} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Alert Status</span>
+              <span className="text-sm font-bold text-amber-600 mt-1">Active Decline Check</span>
+            </div>
+          </Card>
+        </div>
+
+        {/* ── Table & Visual Chart Grid (lg:grid-cols-3 gap-6) ── */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <h2 className="text-base font-semibold text-zinc-900 m-0">Recent Check-in Logs</h2>
+            <Table
+              columns={columns}
+              data={MOCK_MEMBER_LOGS}
+              keyExtractor={(row) => row.id}
+              emptyMessage="No mood logs found for this member"
+            />
+          </div>
+
+          <Card className="flex min-h-[380px] flex-col gap-6 p-8 lg:col-span-1">
+            <div className="pb-4 border-b border-zinc-100">
+              <h3 className="text-base font-bold text-zinc-900 m-0">Metrics Visualization</h3>
+              <p className="text-xs text-zinc-500 m-0 mt-0.5">Mood vs Stress trajectory over past 7 logs</p>
+            </div>
+
+            <div className="flex-1 min-h-[260px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colMood" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#00E676" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#00E676" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colStress" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#EF4444" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
+                  <YAxis domain={[1, 5]} tickCount={5} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="Mood"   stroke="#00E676" strokeWidth={3} fillOpacity={1} fill="url(#colMood)"   name="Mood" />
+                  <Area type="monotone" dataKey="Stress" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colStress)" name="Stress" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+
+      </div>
+    </ManagerLayout>
+  );
+}

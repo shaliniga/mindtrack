@@ -1,0 +1,205 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { User, Key, Shield, Building, Briefcase, Mail } from 'lucide-react';
+import { Button, Card, Input, PageHeader } from '@/components';
+import { EmployeeLayout } from '@/layouts';
+import { useAuthStore } from '@/stores/authStore';
+
+const profileSchema = z.object({
+  name:       z.string().min(2, 'Full name must be at least 2 characters'),
+  department: z.string().min(2, 'Department is required'),
+  jobTitle:   z.string().min(2, 'Job title is required'),
+});
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(6, 'Enter your current password'),
+  newPassword:     z.string().min(6, 'New password must be at least 6 characters'),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+});
+
+type ProfileForm  = z.infer<typeof profileSchema>;
+type PasswordForm = z.infer<typeof passwordSchema>;
+
+export default function EmployeeProfile() {
+  const { user, updateUser } = useAuthStore();
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [pwdLoading, setPwdLoading]         = useState(false);
+
+  const profileForm = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { name: user?.name ?? '', department: 'Engineering', jobTitle: 'Software Engineer' },
+  });
+
+  const pwdForm = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
+  });
+
+  async function onProfileSubmit(data: ProfileForm) {
+    setProfileLoading(true);
+    await new Promise((r) => setTimeout(r, 600));
+    updateUser({ name: data.name });
+    toast.success('Account profile details updated successfully');
+    setProfileLoading(false);
+  }
+
+  async function onPwdSubmit(_data: PasswordForm) {
+    setPwdLoading(true);
+    await new Promise((r) => setTimeout(r, 600));
+    toast.success('Security password updated successfully');
+    pwdForm.reset();
+    setPwdLoading(false);
+  }
+
+  const initials = user?.name
+    ? (user.name[0] + (user.name.split(' ')[1]?.[0] ?? '')).toUpperCase()
+    : 'U';
+
+  return (
+    <EmployeeLayout>
+      <div className="flex w-full flex-col gap-6 animate-fadeIn">
+        <PageHeader
+          title="Account & Profile Settings"
+          subtitle="Manage your personal information, department designation, and security credentials"
+        />
+
+        {/* ── User Overview Hero Banner ── */}
+        <Card className="flex flex-col justify-between gap-6 border-zinc-200 bg-gradient-to-r from-white via-emerald-50/30 to-white p-8 sm:flex-row sm:items-center sm:p-10">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00E676] to-[#00A87E] text-white text-xl font-black flex items-center justify-center shadow-lg shadow-[#00E676]/20 shrink-0">
+              {initials}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-4 flex-wrap">
+                <h2 className="text-xl font-bold text-zinc-900 m-0">{user?.name}</h2>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8FDF5] text-[#00C853]">
+                  <Shield size={12} /> Active Employee
+                </span>
+              </div>
+              <span className="text-sm text-zinc-500 flex items-center gap-1.5">
+                <Mail size={14} className="text-zinc-400" /> {user?.email}
+              </span>
+              <span className="text-xs text-zinc-400 mt-0.5">Member since January 2026</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* ── Two-Column Forms Grid (gap-6) ── */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+          {/* Profile Information Card */}
+          <Card className="flex flex-col gap-6 p-8">
+            <div className="flex items-center gap-4 pb-4 border-b border-zinc-100">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#00C853] flex items-center justify-center shrink-0">
+                <User size={18} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900 m-0">Personal Profile</h3>
+                <p className="text-xs text-zinc-500 m-0 mt-0.5">Your official company directory details</p>
+              </div>
+            </div>
+
+            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="flex flex-col gap-6">
+              <Input
+                label="Full Name"
+                placeholder="Alex Johnson"
+                leftIcon={<User size={16} />}
+                error={profileForm.formState.errors.name?.message}
+                {...profileForm.register('name')}
+              />
+
+              <Input
+                label="Department"
+                placeholder="Engineering"
+                leftIcon={<Building size={16} />}
+                error={profileForm.formState.errors.department?.message}
+                {...profileForm.register('department')}
+              />
+
+              <Input
+                label="Job Designation"
+                placeholder="Software Engineer"
+                leftIcon={<Briefcase size={16} />}
+                error={profileForm.formState.errors.jobTitle?.message}
+                {...profileForm.register('jobTitle')}
+              />
+
+              <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  loading={profileLoading}
+                  className="font-bold shadow-md shadow-[#00E676]/20 px-6 h-10"
+                >
+                  Save Profile Changes
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          {/* Security Credentials Card */}
+          <Card className="flex flex-col gap-6 p-8">
+            <div className="flex items-center gap-4 pb-4 border-b border-zinc-100">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Key size={18} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-900 m-0">Security & Password</h3>
+                <p className="text-xs text-zinc-500 m-0 mt-0.5">Update your sign-in authentication password</p>
+              </div>
+            </div>
+
+            <form onSubmit={pwdForm.handleSubmit(onPwdSubmit)} className="flex flex-col gap-6">
+              <Input
+                label="Current Password"
+                type="password"
+                placeholder="••••••••"
+                leftIcon={<Key size={16} />}
+                error={pwdForm.formState.errors.currentPassword?.message}
+                {...pwdForm.register('currentPassword')}
+              />
+
+              <Input
+                label="New Password"
+                type="password"
+                placeholder="Min 6 characters"
+                leftIcon={<Key size={16} />}
+                error={pwdForm.formState.errors.newPassword?.message}
+                {...pwdForm.register('newPassword')}
+              />
+
+              <Input
+                label="Confirm New Password"
+                type="password"
+                placeholder="Re-enter new password"
+                leftIcon={<Key size={16} />}
+                error={pwdForm.formState.errors.confirmPassword?.message}
+                {...pwdForm.register('confirmPassword')}
+              />
+
+              <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  loading={pwdLoading}
+                  className="font-bold shadow-md shadow-[#00E676]/20 px-6 h-10"
+                >
+                  Update Password
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+        </div>
+      </div>
+    </EmployeeLayout>
+  );
+}
