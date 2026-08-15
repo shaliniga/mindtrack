@@ -51,6 +51,8 @@ app.get("/health", (req: Request, res: Response) => {
   sendSuccess(res, { db: "connected" }, "Server is healthy"); 
 });
 
+import path from "path";
+
 // API Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/employees", employeeRoutes);
@@ -58,6 +60,20 @@ app.use("/api/v1/managers", managerRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/mood", moodRoutes);
 app.use("/api/v1/alerts", alertRoutes);
+
+// Serve frontend static assets in production
+if (env.NODE_ENV === "production") {
+  const frontendDist = path.join(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
+
+  // Wildcard fallback to serve index.html for client-side routing
+  app.get("*", (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api/v1") || req.path === "/health") {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 // Global Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
