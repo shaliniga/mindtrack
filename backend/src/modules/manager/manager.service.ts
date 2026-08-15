@@ -49,9 +49,74 @@ export const getTeamMembersService = async (managerId: string) => {
     .innerJoin(employees, eq(users.id, employees.user_id))
     .where(eq(employees.manager_id, managerProfileId));
 
-  // In a real app, we'd do a left join or subquery to get last log date and 7-day avg mood
-  // For simplicity here, we'll return the base details.
-  return team;
+  if (team.length === 0) {
+    return [];
+  }
+
+  const employeeIds = team.map((member) => member.employee_id);
+
+  // Fetch mood logs for these employees
+  const logs = await db
+    .select()
+    .from(mood_logs)
+    .where(inArray(mood_logs.employee_id, employeeIds))
+    .orderBy(desc(mood_logs.log_date));
+
+  // Group logs by employee
+  const logsByEmployee: Record<string, typeof logs> = {};
+  for (const log of logs) {
+    if (!logsByEmployee[log.employee_id]) {
+      logsByEmployee[log.employee_id] = [];
+    }
+    logsByEmployee[log.employee_id].push(log);
+  }
+
+  // Calculate dates
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split("T")[0];
+
+  // Map team with stats
+  const teamWithStats = team.map((member) => {
+    const employeeLogs = logsByEmployee[member.employee_id] || [];
+    
+    // 1. Last check-in date
+    const lastLogDate = employeeLogs.length > 0 ? employeeLogs[0].log_date : null;
+
+    // 2. 7-day average mood
+    const recentLogs = employeeLogs.filter((log) => log.log_date >= sevenDaysAgoStr);
+    const avgMood = recentLogs.length > 0
+      ? Number((recentLogs.reduce((sum, log) => sum + log.mood_score, 0) / recentLogs.length).toFixed(1))
+      : 0;
+
+    // 3. Trend Indicator
+    const prevLogs = employeeLogs.filter(
+      (log) => log.log_date >= fourteenDaysAgoStr && log.log_date < sevenDaysAgoStr
+    );
+    const prevAvgMood = prevLogs.length > 0
+      ? prevLogs.reduce((sum, log) => sum + log.mood_score, 0) / prevLogs.length
+      : null;
+
+    let trend: "up" | "down" | "stable" = "stable";
+    if (prevAvgMood !== null && recentLogs.length > 0) {
+      const diff = avgMood - prevAvgMood;
+      if (diff > 0.1) trend = "up";
+      else if (diff < -0.1) trend = "down";
+    }
+
+    return {
+      ...member,
+      lastLogDate,
+      avgMood,
+      trend,
+    };
+  });
+
+  return teamWithStats;
 };
 
 export const getTeamStatsService = async (managerId: string) => {

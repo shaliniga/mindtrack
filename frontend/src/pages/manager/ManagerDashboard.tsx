@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { Users, AlertTriangle, Activity, CheckSquare, ArrowRight } from 'lucide-react';
-import { Card, StatCard, Table, PageHeader, MoodScore } from '@/components';
+import { StatCard, Table, PageHeader, MoodScore, PageSpinner } from '@/components';
 import { ManagerLayout } from '@/layouts';
 import type { Column } from '@/components';
 import { useQuery } from '@tanstack/react-query';
 import { managerService } from '@/services/manager.service';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
 
 interface TeamMember {
   id: string;
@@ -29,25 +29,27 @@ const trendBadge = (t: string) => {
 export default function ManagerDashboard() {
   const navigate = useNavigate();
 
-  const { data: team = [] } = useQuery({
+  const { data: team = [], isPending: isTeamPending } = useQuery({
     queryKey: ['manager', 'team'],
     queryFn: managerService.getTeam,
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats, isPending: isStatsPending } = useQuery({
     queryKey: ['manager', 'team', 'stats'],
     queryFn: managerService.getTeamStats,
   });
 
-  const { data: trend = [] } = useQuery({
-    queryKey: ['manager', 'team', 'trend'],
-    queryFn: () => managerService.getTeamTrend(30),
-  });
+  const isLoading = isTeamPending || isStatsPending;
 
-  const chartData = trend.map((t: any) => ({
-    date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    avgMood: Number(t.avgMood),
-  }));
+  if (isLoading) {
+    return (
+      <ManagerLayout>
+        <PageSpinner />
+      </ManagerLayout>
+    );
+  }
+
+
 
   const columns: Column<TeamMember>[] = [
     {
@@ -59,13 +61,35 @@ export default function ManagerDashboard() {
         </span>
       ),
     },
-    { key: 'department',  header: 'Department', render: (v) => <span className="text-zinc-600 text-xs font-medium">{v as string}</span> },
-    { key: 'lastLogDate', header: 'Last Check-in', render: (v) => <span className="text-zinc-500 text-xs">{v as string}</span> },
-    { key: 'avgMood',     header: '7-Day Avg Mood', render: (v) => <MoodScore score={v as number} showLabel /> },
+    { key: 'department', header: 'Department', render: (v) => <span className="text-zinc-600 text-xs font-medium">{v as string}</span> },
+    {
+      key: 'lastLogDate',
+      header: 'Last Check-in',
+      render: (v) => v && v !== 'N/A' ? (
+        <span className="text-zinc-500 text-xs font-medium">
+          {new Date(v as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </span>
+      ) : (
+        <span className="text-zinc-400 text-xs">N/A</span>
+      )
+    },
+    {
+      key: 'avgMood',
+      header: '7-Day Avg Mood',
+      render: (v) => (v && (v as number) > 0) ? (
+        <MoodScore score={v as number} showLabel />
+      ) : (
+        <span className="text-zinc-400 text-xs">N/A</span>
+      )
+    },
     {
       key: 'trend',
       header: 'Trend Indicator',
-      render: (v) => trendBadge(v as string),
+      render: (v, row) => (row.lastLogDate && row.lastLogDate !== 'N/A') ? (
+        trendBadge(v as string)
+      ) : (
+        <span className="text-zinc-400 text-xs">N/A</span>
+      ),
     },
     {
       key: 'actions',
@@ -128,65 +152,31 @@ export default function ManagerDashboard() {
           />
         </div>
 
-        {/* ── 2. Main Sections (CSS Grid: Roster 2-col + Trend Chart 1-col on lg+, gap-6) ── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-          {/* Team Roster Card (spans 2 cols) */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="flex items-center justify-between pb-2">
-              <div>
-                <h2 className="text-base font-semibold text-zinc-900 m-0">Team Members Roster</h2>
-                <p className="text-xs text-zinc-500 m-0 mt-0.5">Click any member to open their detailed metric history</p>
-              </div>
-              <span className="text-xs text-zinc-400 font-medium">{team.length} active members</span>
+        {/* ── 2. Main Sections (Team Roster full-width) ── */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between pb-2">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-900 m-0">Team Members Roster</h2>
+              <p className="text-xs text-zinc-500 m-0 mt-0.5">Click any member to open their detailed metric history</p>
             </div>
-
-            <Table
-              columns={columns}
-              data={team.map((t: any) => ({
-                id: t.id,
-                employee_id: t.employee_id,
-                name: t.name,
-                department: t.department || 'N/A',
-                lastLogDate: 'N/A',
-                avgMood: 0,
-                trend: 'stable'
-              }))}
-              keyExtractor={(row) => row.id}
-              onRowClick={(row) => navigate(`/manager/member/${row.id}`)}
-              emptyMessage="No team members assigned to this group"
-            />
+            <span className="text-xs text-zinc-400 font-medium">{team.length} active members</span>
           </div>
 
-          {/* Team Average Trend Chart Card (spans 1 col, equal height) */}
-          <Card className="flex min-h-[380px] flex-col gap-6 p-8 lg:col-span-1">
-            <div className="pb-4 border-b border-zinc-100">
-              <h2 className="text-base font-semibold text-zinc-900 m-0">
-                Team Average Trend (30 Days)
-              </h2>
-              <p className="text-xs text-zinc-500 m-0 mt-0.5">Rolling average mood score across all members</p>
-            </div>
-
-            <div className="flex-1 min-h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
-                  <YAxis domain={[1, 5]} tickCount={5} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="avgMood"
-                    stroke="#00E676"
-                    strokeWidth={3}
-                    activeDot={{ r: 6, fill: '#00C853' }}
-                    name="Team Avg"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
+          <Table
+            columns={columns}
+            data={team.map((t: any) => ({
+              id: t.id,
+              employee_id: t.employee_id,
+              name: t.name,
+              department: t.department || 'N/A',
+              lastLogDate: t.lastLogDate || 'N/A',
+              avgMood: t.avgMood || 0,
+              trend: t.trend || 'stable'
+            }))}
+            keyExtractor={(row) => row.id}
+            onRowClick={(row) => navigate(`/manager/member/${row.id}`)}
+            emptyMessage="No team members assigned to this group"
+          />
         </div>
       </div>
     </ManagerLayout>

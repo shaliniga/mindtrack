@@ -138,9 +138,9 @@ export default function MemberDetail() {
           </Card>
         </div>
 
-        {/* ── Table & Visual Chart Grid (lg:grid-cols-3 gap-6) ── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 flex flex-col gap-6">
+        {/* ── Table & Visual Chart Stack (stacked vertically, full width) ── */}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6">
             <h2 className="text-base font-semibold text-zinc-900 m-0">Recent Check-in Logs</h2>
             <Table
               columns={columns as any}
@@ -157,7 +157,7 @@ export default function MemberDetail() {
             />
           </div>
 
-          <Card className="flex min-h-[380px] flex-col gap-6 p-8 lg:col-span-1">
+          <Card className="flex min-h-[380px] flex-col gap-6 p-8">
             <div className="pb-4 border-b border-zinc-100">
               <h3 className="text-base font-bold text-zinc-900 m-0">Metrics Visualization</h3>
               <p className="text-xs text-zinc-500 m-0 mt-0.5">Mood vs Stress trajectory over past 7 logs</p>

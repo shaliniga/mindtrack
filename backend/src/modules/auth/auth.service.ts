@@ -133,12 +133,13 @@ export const changePasswordService = async (userId: string, data: ChangePassword
 };
 
 export const getManagersService = async () => {
-  const managersList = await db.query.users.findMany({
-    where: eq(users.role, "manager"),
-    columns: {
-      id: true,
-      name: true,
-    },
-  });
+  const managersList = await db
+    .select({
+      id: managers.id,
+      name: users.name,
+    })
+    .from(users)
+    .innerJoin(managers, eq(users.id, managers.user_id))
+    .where(eq(users.role, "manager"));
   return managersList;
 };
