@@ -35,15 +35,28 @@ function PageLoader() {
   );
 }
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <Toaster
-          position="top-right"
-          richColors
-          toastOptions={{ style: { fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' } }}
-        />
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Toaster
+            position="top-right"
+            richColors
+            toastOptions={{ style: { fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' } }}
+          />
         <Suspense fallback={<PageLoader />}>
           <Routes>
           {/* Public */}
@@ -93,6 +106,7 @@ function App() {
       </Suspense>
     </BrowserRouter>
   </ErrorBoundary>
+  </QueryClientProvider>
   );
 }
 
