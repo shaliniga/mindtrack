@@ -1,30 +1,51 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Flame, PenLine, History, AlertTriangle, User, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Card, StatCard, Button, MoodScore } from '@/components';
 import { useAuthStore } from '@/stores/authStore';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { moodService } from '@/services/mood.service';
+import { alertService } from '@/services/alert.service';
 import { EmployeeLayout } from '@/layouts';
-
-const SEVEN_DAY_TREND = [
-  { date: 'Mon', mood: 4, stress: 2, energy: 4 },
-  { date: 'Tue', mood: 3, stress: 3, energy: 3 },
-  { date: 'Wed', mood: 5, stress: 1, energy: 5 },
-  { date: 'Thu', mood: 4, stress: 2, energy: 4 },
-  { date: 'Fri', mood: 2, stress: 4, energy: 2 },
-  { date: 'Sat', mood: 4, stress: 1, energy: 3 },
-  { date: 'Sun', mood: 5, stress: 1, energy: 5 },
-];
 
 export default function EmployeeDashboard() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-  const [loggedToday] = useState(false);
-  const [todayScore] = useState<1 | 2 | 3 | 4 | 5>(4);
+
+  const { data: todayMood } = useQuery({
+    queryKey: ['mood', 'today'],
+    queryFn: moodService.getToday,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['mood', 'stats', 7],
+    queryFn: () => moodService.getStats(7),
+  });
+
+  const { data: alerts = [] } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: alertService.getAlerts,
+  });
+
+  const loggedToday = !!todayMood;
+  const todayScore = todayMood?.mood_score as 1 | 2 | 3 | 4 | 5 | undefined;
 
   const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+
+  const chartData = (stats || []).map((s: any) => ({
+    date: new Date(s.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    mood: Number(s.avgMood),
+    stress: Number(s.avgStress),
+    energy: Number(s.avgEnergy),
+  }));
+
+  const avgMood = chartData.length > 0 
+    ? (chartData.reduce((acc: number, cur: any) => acc + cur.mood, 0) / chartData.length).toFixed(1)
+    : '0.0';
+
+  const streak = chartData.length; // Simplified streak calculation for demo
 
   return (
     <EmployeeLayout>
@@ -85,7 +106,7 @@ export default function EmployeeDashboard() {
               {loggedToday ? (
               <div className="flex items-center gap-4">
                   <span className="text-sm font-semibold text-zinc-700">Logged as</span>
-                  <MoodScore score={todayScore} size="lg" />
+                  <MoodScore score={todayScore || 1} size="lg" />
                 </div>
               ) : (
                 <div className="flex flex-col gap-1">
@@ -109,7 +130,7 @@ export default function EmployeeDashboard() {
           {/* Check-in Streak */}
           <StatCard
             label="Check-in Streak"
-            value="5 days"
+            value={`${streak} days`}
             icon={<Flame size={20} />}
             color="#F59E0B"
             trend="up"
@@ -119,7 +140,7 @@ export default function EmployeeDashboard() {
           {/* Weekly Avg Mood */}
           <StatCard
             label="Weekly Avg Mood"
-            value="4.1 / 5"
+            value={`${avgMood} / 5`}
             icon={<User size={20} />}
             color="#00E676"
             trend="stable"
@@ -153,7 +174,7 @@ export default function EmployeeDashboard() {
 
             <div className="flex-1 min-h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={SEVEN_DAY_TREND} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorMoodD" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#00E676" stopOpacity={0.25} />
@@ -183,18 +204,26 @@ export default function EmployeeDashboard() {
                 <p className="text-xs text-zinc-500 m-0 mt-0.5">Automated wellness notifications</p>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div className="flex gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200/80">
-                  <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-bold text-amber-950">
-                      Mood Decline Check
-                    </span>
-                    <span className="text-xs text-amber-900/80 leading-relaxed">
-                      Your average mood was lower than usual. Consider taking a short break or recharge time!
-                    </span>
+              <div className="flex flex-col gap-4 overflow-y-auto max-h-[250px]">
+                {alerts.length > 0 ? (
+                  alerts.map((alert: any) => (
+                    <div key={alert.id} className="flex gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200/80">
+                      <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-amber-950">
+                          {alert.alert_type === 'mood_decline' ? 'Mood Decline Check' : 'Wellness Alert'}
+                        </span>
+                        <span className="text-xs text-amber-900/80 leading-relaxed">
+                          {alert.message || 'Your average mood was lower than usual. Consider taking a short break or recharge time!'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-zinc-500 text-center py-8">
+                    No active alerts. You're doing great! 🌟
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

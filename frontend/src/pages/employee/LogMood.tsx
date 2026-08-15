@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { ArrowLeft, Sparkles, Info, Heart, Moon, Zap, MessageSquare } from 'lucide-react';
 import { Button, Card, Input, PageHeader } from '@/components';
 import { EmployeeLayout } from '@/layouts';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { moodService } from '@/services/mood.service';
 
 const moodFormSchema = z.object({
   moodScore:    z.number().min(1).max(5),
@@ -32,28 +34,57 @@ const SLEEP_QUALITY_LABELS = ['Poor (1)', 'Fair (2)', 'Good (3)', 'Very Good (4)
 
 export default function LogMood() {
   const navigate = useNavigate();
-  const [loading, setLoading]           = useState(false);
+  const queryClient = useQueryClient();
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
 
-  const { register, handleSubmit, setValue, formState: { errors }, watch } = useForm<MoodForm>({
+  const { register, handleSubmit, setValue, formState: { errors }, watch, reset } = useForm<MoodForm>({
     resolver: zodResolver(moodFormSchema),
     defaultValues: { sleepHours: 8, stressLevel: 3, energyLevel: 3, sleepQuality: 3, notes: '' },
   });
+
+  const { data: todayMood } = useQuery({
+    queryKey: ['mood', 'today'],
+    queryFn: moodService.getToday,
+  });
+
+  // Pre-fill form if mood already logged today
+  useEffect(() => {
+    if (todayMood) {
+      setSelectedMood(todayMood.mood_score);
+      reset({
+        moodScore: todayMood.mood_score,
+        stressLevel: todayMood.stress_level,
+        energyLevel: todayMood.energy_level,
+        sleepHours: Number(todayMood.sleep_hours),
+        sleepQuality: todayMood.sleep_quality,
+        notes: todayMood.notes || '',
+      });
+    }
+  }, [todayMood, reset]);
 
   const stressVal    = watch('stressLevel');
   const energyVal    = watch('energyLevel');
   const sleepQualVal = watch('sleepQuality');
 
-  async function onSubmit(_data: MoodForm) {
+  const mutation = useMutation({
+    mutationFn: (data: MoodForm) => 
+      todayMood ? moodService.updateMood(todayMood.id, data) : moodService.logMood(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mood'] });
+      toast.success(todayMood ? 'Mood check-in updated!' : 'Mood check-in logged successfully! Keep up the great work.');
+      navigate('/employee/dashboard');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to save mood log.');
+    },
+  });
+
+  async function onSubmit(data: MoodForm) {
     if (selectedMood === null) {
       toast.error("Please select today's overall mood score");
       return;
     }
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    toast.success('Mood check-in logged successfully! Keep up the great work.');
-    navigate('/employee/dashboard');
-    setLoading(false);
+    mutation.mutate(data);
   }
 
   return (
@@ -271,7 +302,7 @@ export default function LogMood() {
               type="submit"
               variant="primary"
               size="lg"
-              loading={loading}
+              loading={mutation.isPending}
               rightIcon={<Sparkles size={18} />}
               className="font-bold shadow-lg shadow-[#00E676]/25 px-8"
             >

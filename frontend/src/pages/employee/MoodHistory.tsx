@@ -4,6 +4,8 @@ import { ArrowLeft, Calendar, FileText } from 'lucide-react';
 import { Card, Table, Button, PageHeader, MoodScore } from '@/components';
 import { EmployeeLayout } from '@/layouts';
 import type { Column } from '@/components';
+import { useQuery } from '@tanstack/react-query';
+import { moodService } from '@/services/mood.service';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface HistoryLog {
@@ -16,25 +18,35 @@ interface HistoryLog {
   notes: string;
 }
 
-const MOCK_HISTORY: HistoryLog[] = [
-  { id: '1', date: '2026-08-08', mood: 4, stress: 2, energy: 4, sleep: 7.5, notes: 'Felt productive and energetic today.' },
-  { id: '2', date: '2026-08-07', mood: 3, stress: 3, energy: 3, sleep: 6.0, notes: 'Had a long meeting, felt slightly tired.' },
-  { id: '3', date: '2026-08-06', mood: 5, stress: 1, energy: 5, sleep: 8.5, notes: 'Great sleep. Got out for a walk in the afternoon.' },
-  { id: '4', date: '2026-08-05', mood: 4, stress: 2, energy: 4, sleep: 8.0, notes: 'Regular work day. Calm.' },
-  { id: '5', date: '2026-08-04', mood: 2, stress: 4, energy: 2, sleep: 5.5, notes: 'Poor sleep. Stressed about deadline.' },
-  { id: '6', date: '2026-08-03', mood: 4, stress: 1, energy: 3, sleep: 7.0, notes: 'Relaxing weekend check-in.' },
-  { id: '7', date: '2026-08-02', mood: 5, stress: 1, energy: 5, sleep: 9.0, notes: 'Slept in. Very refreshed.' },
-];
-
 export default function MoodHistory() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'7d' | '30d'>('7d');
 
-  const chartData = [...MOCK_HISTORY].reverse().map((log) => ({
-    date:   log.date.split('-')[2],
-    Mood:   log.mood,
-    Stress: log.stress,
-    Energy: log.energy,
+  const days = activeTab === '7d' ? 7 : 30;
+
+  // Calculate from/to dates for history
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(toDate.getDate() - days);
+  
+  const fromStr = fromDate.toISOString().split('T')[0];
+  const toStr = toDate.toISOString().split('T')[0];
+
+  const { data: stats = [] } = useQuery({
+    queryKey: ['mood', 'stats', days],
+    queryFn: () => moodService.getStats(days),
+  });
+
+  const { data: history = [] } = useQuery({
+    queryKey: ['mood', 'history', fromStr, toStr],
+    queryFn: () => moodService.getHistory(fromStr, toStr),
+  });
+
+  const chartData = stats.map((s: any) => ({
+    date: new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    Mood: Number(s.avgMood),
+    Stress: Number(s.avgStress),
+    Energy: Number(s.avgEnergy),
   }));
 
   const columns: Column<HistoryLog>[] = [
@@ -164,12 +176,20 @@ export default function MoodHistory() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-zinc-900 m-0">Detailed Check-in Log History</h2>
-            <span className="text-xs text-zinc-400 font-medium">Showing {MOCK_HISTORY.length} records</span>
+            <span className="text-xs text-zinc-400 font-medium">Showing {history.length} records</span>
           </div>
 
           <Table
             columns={columns}
-            data={MOCK_HISTORY}
+            data={history.map((h: any) => ({
+              id: h.id,
+              date: new Date(h.log_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+              mood: h.mood_score,
+              stress: h.stress_level,
+              energy: h.energy_level,
+              sleep: h.sleep_hours,
+              notes: h.notes
+            }))}
             keyExtractor={(row) => row.id}
             emptyIcon={<FileText size={28} />}
             emptyMessage="No historical check-ins recorded yet"

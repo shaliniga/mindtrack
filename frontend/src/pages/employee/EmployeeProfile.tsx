@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,6 +7,9 @@ import { User, Key, Shield, Building, Briefcase, Mail } from 'lucide-react';
 import { Button, Card, Input, PageHeader } from '@/components';
 import { EmployeeLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/authStore';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { employeeService } from '@/services/employee.service';
+import { authService } from '@/services/auth.service';
 
 const profileSchema = z.object({
   name:       z.string().min(2, 'Full name must be at least 2 characters'),
@@ -28,8 +31,6 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function EmployeeProfile() {
   const { user, updateUser } = useAuthStore();
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [pwdLoading, setPwdLoading]         = useState(false);
 
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -41,20 +42,52 @@ export default function EmployeeProfile() {
     defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ['employee', 'profile'],
+    queryFn: employeeService.getProfile,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      profileForm.reset({
+        name: profile.user?.name || user?.name || '',
+        department: profile.department || '',
+        jobTitle: profile.job_title || '',
+      });
+    }
+  }, [profile, user, profileForm.reset]);
+
+  const profileMutation = useMutation({
+    mutationFn: employeeService.updateProfile,
+    onSuccess: (_data, variables) => {
+      updateUser({ name: variables.name });
+      toast.success('Account profile details updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    },
+  });
+
+  const pwdMutation = useMutation({
+    mutationFn: authService.changePassword,
+    onSuccess: () => {
+      toast.success('Security password updated successfully');
+      pwdForm.reset();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update password');
+    },
+  });
+
   async function onProfileSubmit(data: ProfileForm) {
-    setProfileLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    updateUser({ name: data.name });
-    toast.success('Account profile details updated successfully');
-    setProfileLoading(false);
+    profileMutation.mutate(data);
   }
 
-  async function onPwdSubmit(_data: PasswordForm) {
-    setPwdLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    toast.success('Security password updated successfully');
-    pwdForm.reset();
-    setPwdLoading(false);
+  async function onPwdSubmit(data: PasswordForm) {
+    pwdMutation.mutate({
+      oldPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
   }
 
   const initials = user?.name
@@ -135,7 +168,7 @@ export default function EmployeeProfile() {
                   type="submit"
                   variant="primary"
                   size="md"
-                  loading={profileLoading}
+                  loading={profileMutation.isPending}
                   className="font-bold shadow-md shadow-[#00E676]/20 px-6 h-10"
                 >
                   Save Profile Changes
@@ -189,7 +222,7 @@ export default function EmployeeProfile() {
                   type="submit"
                   variant="primary"
                   size="md"
-                  loading={pwdLoading}
+                  loading={pwdMutation.isPending}
                   className="font-bold shadow-md shadow-[#00E676]/20 px-6 h-10"
                 >
                   Update Password
