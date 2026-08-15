@@ -1,27 +1,35 @@
 import { Users, AlertTriangle, Smile, ShieldCheck } from 'lucide-react';
 import { Card, StatCard, PageHeader } from '@/components';
 import { AdminLayout } from '@/layouts';
+import { useQuery } from '@tanstack/react-query';
+import { adminService } from '@/services/admin.service';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const ORG_TREND_DATA = [
-  { date: 'Mon', avgMood: 3.9 },
-  { date: 'Tue', avgMood: 3.8 },
-  { date: 'Wed', avgMood: 4.1 },
-  { date: 'Thu', avgMood: 4.0 },
-  { date: 'Fri', avgMood: 3.7 },
-  { date: 'Sat', avgMood: 3.8 },
-  { date: 'Sun', avgMood: 4.0 },
-];
-
-const DEPT_BREAKDOWN = [
-  { name: 'Engineering', mood: 3.6 },
-  { name: 'Product',     mood: 4.2 },
-  { name: 'Sales',       mood: 3.9 },
-  { name: 'Marketing',   mood: 4.1 },
-  { name: 'HR Ops',      mood: 4.4 },
-];
-
 export default function AdminDashboard() {
+  const { data: stats } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: adminService.getStats,
+  });
+
+  const { data: trend = [] } = useQuery({
+    queryKey: ['admin', 'trend', 30],
+    queryFn: () => adminService.getTrend(30),
+  });
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ['admin', 'depts'],
+    queryFn: adminService.getDepts,
+  });
+
+  const chartData = trend.map((t: any) => ({
+    date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    avgMood: Number(t.avgMood),
+  }));
+
+  const deptData = depts.map((d: any) => ({
+    name: d.department,
+    mood: Number(d.avgMood),
+  }));
   return (
     <AdminLayout>
       <div className="flex w-full flex-col gap-6 animate-fadeIn">
@@ -34,33 +42,33 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Total Employees"
-            value="42 Users"
+            value={stats?.totalEmployees !== undefined ? `${stats.totalEmployees} Users` : 'N/A'}
             icon={<Users size={20} />}
             color="#00E676"
           />
           <StatCard
             label="Active Alerts"
-            value="3 High Risk"
+            value={stats?.activeAlerts !== undefined ? `${stats.activeAlerts} Active` : 'N/A'}
             icon={<AlertTriangle size={20} />}
             color="#EF4444"
-            trend="down"
-            trendLabel="2 resolved today"
+            trend="stable"
+            trendLabel="Needs manager support"
           />
           <StatCard
             label="Org Average Mood"
-            value="3.9 / 5"
+            value={stats?.orgAvgMood ? `${stats.orgAvgMood} / 5` : 'N/A'}
             icon={<Smile size={20} />}
             color="#10B981"
-            trend="up"
-            trendLabel="+0.1 this month"
+            trend="stable"
+            trendLabel="Rolling baseline index"
           />
           <StatCard
-            label="System Check-ins"
-            value="94%"
+            label="Weekly Check-ins"
+            value={stats?.checkinsThisWeek !== undefined ? `${stats.checkinsThisWeek} logs` : 'N/A'}
             icon={<ShieldCheck size={20} />}
             color="#3B82F6"
-            trend="up"
-            trendLabel="High team engagement"
+            trend="stable"
+            trendLabel="Engagement this week"
           />
         </div>
 
@@ -79,7 +87,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex-1 min-h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ORG_TREND_DATA} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorOrg" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#00E676" stopOpacity={0.25} />
@@ -116,7 +124,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex-1 min-h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={DEPT_BREAKDOWN} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <BarChart data={deptData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
                   <YAxis domain={[0, 5]} tickCount={6} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />

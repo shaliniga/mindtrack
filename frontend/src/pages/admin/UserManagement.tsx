@@ -8,6 +8,8 @@ import { Card, Table, Button, Input, Select, Modal, PageHeader, Badge } from '@/
 import type { Column } from '@/components';
 import { AdminLayout } from '@/layouts';
 import type { Role } from '@/types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminService } from '@/services/admin.service';
 
 interface SystemUser {
   id: string;
@@ -17,14 +19,6 @@ interface SystemUser {
   status: 'active' | 'inactive';
   joinedDate: string;
 }
-
-const MOCK_USERS: SystemUser[] = [
-  { id: '1', name: 'Alex Johnson',   email: 'employee@demo.com', role: 'employee', status: 'active',   joinedDate: '2026-01-15' },
-  { id: '2', name: 'Sarah Williams', email: 'manager@demo.com',  role: 'manager',  status: 'active',   joinedDate: '2026-02-10' },
-  { id: '3', name: 'James Carter',   email: 'admin@demo.com',    role: 'admin',    status: 'active',   joinedDate: '2026-03-01' },
-  { id: '4', name: 'Emily Davis',    email: 'emily@demo.com',    role: 'employee', status: 'active',   joinedDate: '2026-04-18' },
-  { id: '5', name: 'David Wilson',   email: 'david@demo.com',    role: 'employee', status: 'inactive', joinedDate: '2026-05-22' },
-];
 
 const addUserSchema = z.object({
   name:     z.string().min(2, 'Name must be at least 2 characters'),
@@ -36,11 +30,61 @@ const addUserSchema = z.object({
 type AddUserForm = z.infer<typeof addUserSchema>;
 
 export default function UserManagement() {
-  const [users, setUsers]           = useState<SystemUser[]>(MOCK_USERS);
+  const queryClient = useQueryClient();
   const [search, setSearch]         = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading]       = useState(false);
+
+  const { data: rawUsers = [] } = useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: adminService.getUsers,
+  });
+
+  const users: SystemUser[] = rawUsers.map((u: any) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role as Role,
+    status: u.is_active ? 'active' as const : 'inactive' as const,
+    joinedDate: new Date(u.created_at).toISOString().split('T')[0],
+  }));
+
+  const setStatusMutation = useMutation({
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+      adminService.setStatus(userId, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success('User account status updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update user status');
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: Role }) =>
+      adminService.updateRole(userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success('User account role updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update user role');
+    },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: adminService.createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success('New user account registered successfully');
+      setIsModalOpen(false);
+      reset();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to register user');
+    },
+  });
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AddUserForm>({
     resolver: zodResolver(addUserSchema),
@@ -48,36 +92,23 @@ export default function UserManagement() {
   });
 
   function handleStatusToggle(id: string) {
-    setUsers((prev) => prev.map((u) => {
-      if (u.id !== id) return u;
-      const nextStatus = u.status === 'active' ? 'inactive' as const : 'active' as const;
-      toast.success(`User status updated to ${nextStatus}`);
-      return { ...u, status: nextStatus };
-    }));
+    const userItem = users.find((u) => u.id === id);
+    if (!userItem) return;
+    setStatusMutation.mutate({
+      userId: id,
+      isActive: userItem.status === 'inactive',
+    });
   }
 
   function handleRoleChange(id: string, newRole: Role) {
-    setUsers((prev) => prev.map((u) => {
-      if (u.id !== id) return u;
-      toast.success(`Role updated to ${newRole}`);
-      return { ...u, role: newRole };
-    }));
+    updateRoleMutation.mutate({
+      userId: id,
+      role: newRole,
+    });
   }
 
   async function onSubmit(data: AddUserForm) {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const newUser: SystemUser = {
-      id: String(users.length + 1),
-      name: data.name, email: data.email, role: data.role,
-      status: 'active',
-      joinedDate: new Date().toISOString().split('T')[0],
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    toast.success('New user account registered successfully');
-    setIsModalOpen(false);
-    reset();
-    setLoading(false);
+    createUserMutation.mutate(data);
   }
 
   const filteredUsers = users.filter((u) => {
@@ -257,7 +288,7 @@ export default function UserManagement() {
                 type="submit"
                 variant="primary"
                 size="md"
-                loading={loading}
+                loading={createUserMutation.isPending}
                 className="font-bold shadow-md shadow-[#00E676]/20 px-6"
               >
                 Create Account

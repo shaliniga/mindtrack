@@ -1,25 +1,34 @@
 import { useState } from 'react';
 import { Card, PageHeader } from '@/components';
 import { AdminLayout } from '@/layouts';
+import { useQuery } from '@tanstack/react-query';
+import { adminService } from '@/services/admin.service';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const WEEKLY_TREND = [
-  { week: 'Week 1', checkinRate: 85, stressLevel: 2.1 },
-  { week: 'Week 2', checkinRate: 88, stressLevel: 2.2 },
-  { week: 'Week 3', checkinRate: 91, stressLevel: 2.0 },
-  { week: 'Week 4', checkinRate: 94, stressLevel: 1.8 },
-];
-
-const DEPT_COMPARISON = [
-  { name: 'Engineering', avgMood: 3.5, avgStress: 3.8 },
-  { name: 'Product',     avgMood: 4.1, avgStress: 2.6 },
-  { name: 'Sales',       avgMood: 3.8, avgStress: 3.2 },
-  { name: 'Marketing',   avgMood: 4.0, avgStress: 2.9 },
-  { name: 'HR Ops',      avgMood: 4.5, avgStress: 1.5 },
-];
 
 export default function AdminAnalytics() {
   const [rangeFilter, setRangeFilter] = useState<'30' | '90'>('30');
+
+  const { data: trend = [] } = useQuery({
+    queryKey: ['admin', 'trend', rangeFilter],
+    queryFn: () => adminService.getTrend(Number(rangeFilter)),
+  });
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ['admin', 'depts'],
+    queryFn: adminService.getDepts,
+  });
+
+  const chartData = trend.map((t: any) => ({
+    week: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    checkinRate: t.checkinRate,
+    stressLevel: Number(t.avgStress),
+  }));
+
+  const deptData = depts.map((d: any) => ({
+    name: d.department,
+    avgMood: Number(d.avgMood),
+    avgStress: Number(d.avgStress),
+  }));
 
   const RANGES = [
     { key: '30' as const, label: 'Last 30 Days' },
@@ -79,7 +88,7 @@ export default function AdminAnalytics() {
 
             <div className="flex-1 min-h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={WEEKLY_TREND} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
                   <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
                   <YAxis yAxisId="left"  domain={[50, 100]} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
@@ -115,7 +124,7 @@ export default function AdminAnalytics() {
 
             <div className="flex-1 min-h-[280px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={DEPT_COMPARISON} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <BarChart data={deptData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
                   <YAxis domain={[0, 5]} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />

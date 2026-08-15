@@ -142,6 +142,9 @@ export const getOrgStatsService = async () => {
 };
 
 export const getOrgMoodTrendService = async (days: number) => {
+  const employeesCountResult = await db.select({ count: sql<number>`count(*)` }).from(employees);
+  const totalEmployees = Number(employeesCountResult[0]?.count || 1);
+
   const daysAgo = new Date();
   daysAgo.setDate(daysAgo.getDate() - days);
   const formattedDate = daysAgo.toISOString().split("T")[0];
@@ -150,6 +153,8 @@ export const getOrgMoodTrendService = async (days: number) => {
     .select({
       date: mood_logs.log_date,
       avgMood: sql<number>`avg(${mood_logs.mood_score})`,
+      avgStress: sql<number>`avg(${mood_logs.stress_level})`,
+      checkinsCount: sql<number>`count(distinct ${mood_logs.employee_id})`,
     })
     .from(mood_logs)
     .where(gte(mood_logs.log_date, formattedDate))
@@ -158,7 +163,9 @@ export const getOrgMoodTrendService = async (days: number) => {
 
   return trend.map(t => ({
     date: t.date,
-    avgMood: Number(t.avgMood).toFixed(1)
+    avgMood: Number(t.avgMood).toFixed(1),
+    avgStress: Number(t.avgStress).toFixed(1),
+    checkinRate: Math.round((Number(t.checkinsCount) / totalEmployees) * 100),
   }));
 };
 
@@ -167,6 +174,7 @@ export const getDeptBreakdownService = async () => {
     .select({
       department: employees.department,
       avgMood: sql<number>`avg(${mood_logs.mood_score})`,
+      avgStress: sql<number>`avg(${mood_logs.stress_level})`,
     })
     .from(mood_logs)
     .innerJoin(employees, eq(mood_logs.employee_id, employees.id))
@@ -174,6 +182,7 @@ export const getDeptBreakdownService = async () => {
 
   return depts.map(d => ({
     department: d.department || "Unassigned",
-    avgMood: Number(d.avgMood).toFixed(1)
+    avgMood: Number(d.avgMood).toFixed(1),
+    avgStress: Number(d.avgStress).toFixed(1),
   }));
 };
