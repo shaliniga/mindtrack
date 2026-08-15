@@ -7,6 +7,8 @@ import { logger } from "../../utils/logger";
 function sanitizeError(error: any): string {
   if (error.message?.startsWith("Failed query")) {
     logger.error(`Database error: ${error.message}`);
+    logger.error(`Error cause: ${error.cause?.message || error.cause || "N/A"}`);
+    logger.error(`Error stack: ${error.stack}`);
     return "Something went wrong. Please try again later.";
   }
   return error.message || "An unexpected error occurred.";

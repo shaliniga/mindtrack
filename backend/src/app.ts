@@ -46,9 +46,27 @@ if (env.NODE_ENV !== "production") {
   setupSwagger(app);
 }
 
-// Health Check
-app.get("/health", (req: Request, res: Response) => {
-  sendSuccess(res, { db: "connected" }, "Server is healthy"); 
+// Health Check - with actual DB connectivity test
+app.get("/health", async (req: Request, res: Response) => {
+  try {
+    const { Pool } = await import("pg");
+    const testPool = new Pool({
+      connectionString: env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+    const client = await testPool.connect();
+    await client.query("SELECT 1 as ok");
+    client.release();
+    await testPool.end();
+    sendSuccess(res, { db: "connected" }, "Server is healthy");
+  } catch (err: any) {
+    logger.error(`Health check DB error: ${err.message} | ${err.stack}`);
+    res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+      error: err.message,
+    });
+  }
 });
 
 import path from "path";
