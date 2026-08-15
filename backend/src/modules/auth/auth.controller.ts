@@ -2,6 +2,15 @@ import { Request, Response } from "express";
 import { RegisterSchema, LoginSchema, ChangePasswordSchema } from "../../schema/auth.schema";
 import { registerService, loginService, changePasswordService, getManagersService } from "./auth.service";
 import { sendSuccess, sendError } from "../../utils/response";
+import { logger } from "../../utils/logger";
+
+function sanitizeError(error: any): string {
+  if (error.message?.startsWith("Failed query")) {
+    logger.error(`Database error: ${error.message}`);
+    return "Something went wrong. Please try again later.";
+  }
+  return error.message || "An unexpected error occurred.";
+}
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -12,7 +21,7 @@ export const register = async (req: Request, res: Response) => {
     if (error.name === "ZodError") {
       return sendError(res, "Validation failed", 400, error.errors);
     }
-    return sendError(res, error.message, 400);
+    return sendError(res, sanitizeError(error), 400);
   }
 };
 
@@ -25,7 +34,7 @@ export const login = async (req: Request, res: Response) => {
     if (error.name === "ZodError") {
       return sendError(res, "Validation failed", 400, error.errors);
     }
-    return sendError(res, error.message, 401);
+    return sendError(res, sanitizeError(error), 401);
   }
 };
 
@@ -41,7 +50,7 @@ export const changePassword = async (req: Request, res: Response) => {
     if (error.name === "ZodError") {
       return sendError(res, "Validation failed", 400, error.errors);
     }
-    return sendError(res, error.message, 400);
+    return sendError(res, sanitizeError(error), 400);
   }
 };
 
@@ -50,6 +59,6 @@ export const getManagers = async (req: Request, res: Response) => {
     const result = await getManagersService();
     return sendSuccess(res, result, "Managers fetched successfully", 200);
   } catch (error: any) {
-    return sendError(res, error.message, 400);
+    return sendError(res, sanitizeError(error), 500);
   }
 };

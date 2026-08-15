@@ -88,21 +88,10 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = env.PORT || 3000;
 
-// Run migrations before starting the server
-import { runMigrations } from "./db/migrate";
-
-(async () => {
-  try {
-    await runMigrations();
-  } catch (err) {
-    logger.error("Failed to run migrations. Starting server anyway...");
-  }
-
-  app.listen(PORT, () => {
-    logger.info(`Server running in ${env.NODE_ENV} mode on port ${PORT}`);
-    // Start the cron job
-    startAlertCheckCron();
-  });
-})();
+app.listen(PORT, () => {
+  logger.info(`Server running in ${env.NODE_ENV} mode on port ${PORT}`);
+  // Start the cron job
+  startAlertCheckCron();
+});
 
 export default app;
