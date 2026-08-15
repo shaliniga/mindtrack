@@ -47,6 +47,13 @@ export default function EmployeeDashboard() {
 
   const streak = chartData.length; // Simplified streak calculation for demo
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <EmployeeLayout>
       <div className="flex w-full flex-col gap-6 animate-fadeIn">
@@ -59,7 +66,7 @@ export default function EmployeeDashboard() {
               <span>☀️</span> Daily Wellness Overview
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight m-0">
-              Good morning, {user?.name ?? 'Employee'}!
+              {getGreeting()}, {user?.name ?? 'Employee'}!
             </h1>
             <p className="text-sm text-zinc-500 flex items-center gap-2 m-0 mt-0.5">
               <Calendar size={15} className="text-zinc-400" />
