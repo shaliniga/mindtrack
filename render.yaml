@@ -2,6 +2,7 @@ services:
   # 1. Backend Web Service
   - type: web
     name: mindtrack-backend
+    plan: free
     env: node
     rootDir: backend
     buildCommand: npm install && npm run db:migrate && npm run build
@@ -24,6 +25,7 @@ services:
   # 2. Frontend Static Site
   - type: web
     name: mindtrack-frontend
+    plan: free
     env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
