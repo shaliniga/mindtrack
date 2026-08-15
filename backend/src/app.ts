@@ -67,7 +67,7 @@ if (env.NODE_ENV === "production") {
   app.use(express.static(frontendDist));
 
   // Wildcard fallback to serve index.html for client-side routing
-  app.get("*", (req: Request, res: Response, next: NextFunction) => {
+  app.get("{*path}", (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api/v1") || req.path === "/health") {
       return next();
     }
