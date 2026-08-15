@@ -2,8 +2,11 @@ import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
 // Create an Axios instance
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const baseURL = rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl}/api/v1`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
+  baseURL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
