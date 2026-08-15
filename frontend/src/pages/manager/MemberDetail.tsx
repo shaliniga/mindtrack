@@ -3,6 +3,8 @@ import { ArrowLeft, Activity, AlertTriangle, Calendar, Heart } from 'lucide-reac
 import { Button, Card, Table, PageHeader, MoodScore } from '@/components';
 import { ManagerLayout } from '@/layouts';
 import type { Column } from '@/components';
+import { useQuery } from '@tanstack/react-query';
+import { managerService } from '@/services/manager.service';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberLog {
@@ -14,30 +16,40 @@ interface MemberLog {
   sleep: number;
 }
 
-const MOCK_MEMBER_LOGS: MemberLog[] = [
-  { id: '1', date: '2026-08-08', mood: 2, stress: 4, energy: 2, sleep: 5.5 },
-  { id: '2', date: '2026-08-07', mood: 2, stress: 5, energy: 1, sleep: 5.0 },
-  { id: '3', date: '2026-08-06', mood: 3, stress: 3, energy: 3, sleep: 6.5 },
-  { id: '4', date: '2026-08-05', mood: 2, stress: 4, energy: 2, sleep: 6.0 },
-  { id: '5', date: '2026-08-04', mood: 3, stress: 3, energy: 3, sleep: 7.0 },
-  { id: '6', date: '2026-08-03', mood: 4, stress: 2, energy: 4, sleep: 7.5 },
-  { id: '7', date: '2026-08-02', mood: 4, stress: 1, energy: 4, sleep: 8.0 },
-];
-
 export default function MemberDetail() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const name       = id === 'emp-2' ? 'Emily Davis' : 'Alex Johnson';
-  const roleTitle  = 'Software Engineer';
-  const department = 'Engineering';
+  const { data: member } = useQuery({
+    queryKey: ['manager', 'member', id],
+    queryFn: () => managerService.getMember(id!),
+    enabled: !!id,
+  });
 
-  const chartData = [...MOCK_MEMBER_LOGS].reverse().map((log) => ({
-    date:   log.date.split('-')[2],
-    Mood:   log.mood,
-    Stress: log.stress,
-    Energy: log.energy,
+  const name = member?.profile?.name || 'Loading...';
+  const roleTitle = member?.profile?.job_title || 'Employee';
+  const department = member?.profile?.department || 'N/A';
+
+  const logs = member?.recentLogs || [];
+
+  const chartData = [...logs].reverse().map((log: any) => ({
+    date: new Date(log.log_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    Mood: log.mood_score,
+    Stress: log.stress_level,
+    Energy: log.energy_level,
   }));
+
+  const avgMood = logs.length > 0 
+    ? (logs.reduce((acc: number, cur: any) => acc + cur.mood_score, 0) / logs.length).toFixed(1)
+    : '0.0';
+
+  const avgStress = logs.length > 0
+    ? (logs.reduce((acc: number, cur: any) => acc + cur.stress_level, 0) / logs.length).toFixed(1)
+    : '0.0';
+
+  const alertStatus = member?.activeAlerts && member.activeAlerts.length > 0
+    ? member.activeAlerts[0].alert_type === 'mood_decline' ? 'Mood Decline' : 'Active Alert'
+    : 'Healthy';
 
   const columns: Column<MemberLog>[] = [
     {
@@ -100,7 +112,7 @@ export default function MemberDetail() {
             <div className="flex flex-col">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">7-Day Avg Mood</span>
               <div className="text-xl font-extrabold text-zinc-900 mt-1 flex items-center gap-2">
-                <MoodScore score={2.6} size="lg" />
+                <MoodScore score={Number(avgMood) || 1} size="lg" />
               </div>
             </div>
           </Card>
@@ -111,7 +123,7 @@ export default function MemberDetail() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Average Stress</span>
-              <span className="text-xl font-extrabold text-rose-600 mt-1">3.8 / 5</span>
+              <span className="text-xl font-extrabold text-rose-600 mt-1">{avgStress} / 5</span>
             </div>
           </Card>
 
@@ -121,7 +133,7 @@ export default function MemberDetail() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Alert Status</span>
-              <span className="text-sm font-bold text-amber-600 mt-1">Active Decline Check</span>
+              <span className="text-sm font-bold text-amber-600 mt-1">{alertStatus}</span>
             </div>
           </Card>
         </div>
@@ -131,9 +143,16 @@ export default function MemberDetail() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <h2 className="text-base font-semibold text-zinc-900 m-0">Recent Check-in Logs</h2>
             <Table
-              columns={columns}
-              data={MOCK_MEMBER_LOGS}
-              keyExtractor={(row) => row.id}
+              columns={columns as any}
+              data={logs.map((log: any) => ({
+                id: log.id,
+                date: new Date(log.log_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+                mood: log.mood_score,
+                stress: log.stress_level,
+                energy: log.energy_level,
+                sleep: log.sleep_hours,
+              }))}
+              keyExtractor={(row: any) => row.id}
               emptyMessage="No mood logs found for this member"
             />
           </div>

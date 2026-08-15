@@ -3,6 +3,8 @@ import { Users, AlertTriangle, Activity, CheckSquare, ArrowRight } from 'lucide-
 import { Card, StatCard, Table, PageHeader, MoodScore } from '@/components';
 import { ManagerLayout } from '@/layouts';
 import type { Column } from '@/components';
+import { useQuery } from '@tanstack/react-query';
+import { managerService } from '@/services/manager.service';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface TeamMember {
@@ -13,24 +15,6 @@ interface TeamMember {
   avgMood: number;
   trend: 'up' | 'down' | 'stable';
 }
-
-const MOCK_TEAM: TeamMember[] = [
-  { id: 'emp-1', name: 'Alex Johnson',    department: 'Engineering', lastLogDate: '2026-08-08', avgMood: 4.2, trend: 'up' },
-  { id: 'emp-2', name: 'Emily Davis',     department: 'Engineering', lastLogDate: '2026-08-08', avgMood: 2.1, trend: 'down' },
-  { id: 'emp-3', name: 'Michael Brown',   department: 'Design',      lastLogDate: '2026-08-07', avgMood: 3.8, trend: 'stable' },
-  { id: 'emp-4', name: 'Jessica Taylor',  department: 'Product',     lastLogDate: '2026-08-08', avgMood: 4.5, trend: 'up' },
-  { id: 'emp-5', name: 'David Wilson',    department: 'Engineering', lastLogDate: '2026-08-06', avgMood: 2.4, trend: 'down' },
-];
-
-const TEAM_TREND_DATA = [
-  { date: 'Mon', avgMood: 3.8 },
-  { date: 'Tue', avgMood: 3.6 },
-  { date: 'Wed', avgMood: 3.9 },
-  { date: 'Thu', avgMood: 4.1 },
-  { date: 'Fri', avgMood: 3.5 },
-  { date: 'Sat', avgMood: 3.7 },
-  { date: 'Sun', avgMood: 3.9 },
-];
 
 const trendBadge = (t: string) => {
   if (t === 'up') {
@@ -44,6 +28,26 @@ const trendBadge = (t: string) => {
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
+
+  const { data: team = [] } = useQuery({
+    queryKey: ['manager', 'team'],
+    queryFn: managerService.getTeam,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['manager', 'team', 'stats'],
+    queryFn: managerService.getTeamStats,
+  });
+
+  const { data: trend = [] } = useQuery({
+    queryKey: ['manager', 'team', 'trend'],
+    queryFn: () => managerService.getTeamTrend(30),
+  });
+
+  const chartData = trend.map((t: any) => ({
+    date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    avgMood: Number(t.avgMood),
+  }));
 
   const columns: Column<TeamMember>[] = [
     {
@@ -92,35 +96,35 @@ export default function ManagerDashboard() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Team Avg Mood"
-            value="3.7 / 5"
+            value={stats?.avgMood ? `${stats.avgMood} / 5` : 'N/A'}
             icon={<Users size={20} />}
             color="#00E676"
-            trend="up"
-            trendLabel="+0.2 this week"
+            trend="stable"
+            trendLabel="7-day rolling average"
           />
           <StatCard
             label="Check-in Rate"
-            value="80%"
+            value={stats?.checkInRate || 'N/A'}
             icon={<CheckSquare size={20} />}
             color="#10B981"
-            trend="up"
-            trendLabel="4 of 5 logged today"
+            trend="stable"
+            trendLabel="Distinct members logged in 7d"
           />
           <StatCard
             label="Active Alerts"
-            value="2 Members"
+            value={stats?.activeAlerts !== undefined ? `${stats.activeAlerts} Alerts` : 'N/A'}
             icon={<AlertTriangle size={20} />}
             color="#EF4444"
-            trend="down"
+            trend="stable"
             trendLabel="Needs manager support"
           />
           <StatCard
-            label="Wellness Streak"
-            value="14 Days"
+            label="Team Size"
+            value={`${team.length} Members`}
             icon={<Activity size={20} />}
             color="#3B82F6"
             trend="stable"
-            trendLabel="Consistent team logging"
+            trendLabel="Active profiles linked to you"
           />
         </div>
 
@@ -134,12 +138,20 @@ export default function ManagerDashboard() {
                 <h2 className="text-base font-semibold text-zinc-900 m-0">Team Members Roster</h2>
                 <p className="text-xs text-zinc-500 m-0 mt-0.5">Click any member to open their detailed metric history</p>
               </div>
-              <span className="text-xs text-zinc-400 font-medium">5 active members</span>
+              <span className="text-xs text-zinc-400 font-medium">{team.length} active members</span>
             </div>
 
             <Table
               columns={columns}
-              data={MOCK_TEAM}
+              data={team.map((t: any) => ({
+                id: t.id,
+                employee_id: t.employee_id,
+                name: t.name,
+                department: t.department || 'N/A',
+                lastLogDate: 'N/A',
+                avgMood: 0,
+                trend: 'stable'
+              }))}
               keyExtractor={(row) => row.id}
               onRowClick={(row) => navigate(`/manager/member/${row.id}`)}
               emptyMessage="No team members assigned to this group"
@@ -157,7 +169,7 @@ export default function ManagerDashboard() {
 
             <div className="flex-1 min-h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={TEAM_TREND_DATA} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F4F4F5" />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />
                   <YAxis domain={[1, 5]} tickCount={5} tickLine={false} axisLine={false} tick={{ fill: '#71717A', fontSize: 12 }} />

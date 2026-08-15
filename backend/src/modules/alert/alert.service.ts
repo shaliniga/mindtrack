@@ -4,14 +4,33 @@ import { alerts } from "../../schema/alert.schema";
 import { audit_logs } from "../../schema/audit.schema";
 import { getManagerProfileId } from "../manager/manager.service";
 
+import { employees } from "../../schema/profile.schema";
+import { users } from "../../schema/user.schema";
+
 export const getAlertsService = async (userId: string, role: string) => {
+  const selectQuery = db
+    .select({
+      id: alerts.id,
+      employee_id: alerts.employee_id,
+      manager_id: alerts.manager_id,
+      type: alerts.type,
+      severity: alerts.severity,
+      status: alerts.status,
+      created_at: alerts.created_at,
+      resolved_at: alerts.resolved_at,
+      employeeName: users.name,
+    })
+    .from(alerts)
+    .innerJoin(employees, eq(alerts.employee_id, employees.id))
+    .innerJoin(users, eq(employees.user_id, users.id));
+
   if (role === "admin") {
     // Admins see all alerts
-    return await db.select().from(alerts);
+    return await selectQuery;
   } else if (role === "manager") {
     // Managers see only their team's alerts
     const managerProfileId = await getManagerProfileId(userId);
-    return await db.select().from(alerts).where(eq(alerts.manager_id, managerProfileId));
+    return await selectQuery.where(eq(alerts.manager_id, managerProfileId));
   } else {
     throw new Error("Unauthorized to view alerts");
   }
