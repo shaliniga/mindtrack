@@ -2,6 +2,9 @@
 
 MindTrack is a comprehensive mental wellness tracking platform designed to help organizations monitor employee wellness, identify early burnout trends, and manage team wellness metrics. By providing role-based portals for Employees, Managers, and HR Admins, the platform balances individual confidentiality with organizational oversight.
 
+# Live demo
+https://mindtrack-03h8.onrender.com
+
 ---
 
 ## 🛠️ Tech Stack
