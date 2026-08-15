@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { RegisterSchema, LoginSchema, ChangePasswordSchema } from "../../schema/auth.schema";
-import { registerService, loginService, changePasswordService } from "./auth.service";
+import { registerService, loginService, changePasswordService, getManagersService } from "./auth.service";
 import { sendSuccess, sendError } from "../../utils/response";
 
 export const register = async (req: Request, res: Response) => {
@@ -41,6 +41,15 @@ export const changePassword = async (req: Request, res: Response) => {
     if (error.name === "ZodError") {
       return sendError(res, "Validation failed", 400, error.errors);
     }
+    return sendError(res, error.message, 400);
+  }
+};
+
+export const getManagers = async (req: Request, res: Response) => {
+  try {
+    const result = await getManagersService();
+    return sendSuccess(res, result, "Managers fetched successfully", 200);
+  } catch (error: any) {
     return sendError(res, error.message, 400);
   }
 };

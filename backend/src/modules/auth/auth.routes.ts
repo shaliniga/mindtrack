@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, changePassword } from "./auth.controller";
+import { register, login, changePassword, getManagers } from "./auth.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
 
 const router = Router();
@@ -69,5 +69,17 @@ router.post("/login", login);
  *         description: Success
  */
 router.post("/change-password", authMiddleware, changePassword);
+
+/**
+ * @openapi
+ * /api/v1/auth/managers:
+ *   get:
+ *     summary: Get list of managers for registration dropdown
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+router.get("/managers", getManagers);
 
 export default router;

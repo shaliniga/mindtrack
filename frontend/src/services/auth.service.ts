@@ -1,5 +1,5 @@
 import api from './api';
-import type { User, Role } from '@/types';
+import type { User } from '@/types';
 
 export interface AuthResponse {
   token: string;
@@ -19,5 +19,10 @@ export const authService = {
 
   changePassword: async (data: any): Promise<void> => {
     await api.post('/auth/change-password', data);
+  },
+
+  getManagers: async (): Promise<{ id: string; name: string }[]> => {
+    const response = await api.get('/auth/managers');
+    return response.data.data;
   },
 };

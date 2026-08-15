@@ -7,8 +7,9 @@ import { toast } from 'sonner';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button, Input, Select } from '@/components';
 import { useAuthStore } from '@/stores/authStore';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { authService } from '@/services/auth.service';
 import type { Role } from '@/types';
-
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -19,6 +20,7 @@ const registerSchema = z.object({
   email: z.string().email('Enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
+  managerId: z.string().optional(),
 }).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
@@ -27,12 +29,6 @@ const registerSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 type RegisterForm = z.infer<typeof registerSchema>;
 type Mode = 'login' | 'register';
-
-const MOCK_USERS: Record<Role, { id: string; name: string; email: string; role: Role }> = {
-  employee: { id: 'emp-1', name: 'Alex Johnson', email: 'employee@demo.com', role: 'employee' },
-  manager: { id: 'mgr-1', name: 'Sarah Williams', email: 'manager@demo.com', role: 'manager' },
-  admin: { id: 'adm-1', name: 'James Carter', email: 'admin@demo.com', role: 'admin' },
-};
 
 const ROLE_DASHBOARD: Record<Role, string> = {
   employee: '/employee/dashboard',
@@ -57,10 +53,16 @@ export default function LoginPage() {
   const [role, setRole] = useState<Role>('employee');
   const [showPwd, setShowPwd] = useState(false);
   const [showCPwd, setShowCPwd] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const { login } = useAuthStore();
   const navigate = useNavigate();
+
+  const { data: managers = [] } = useQuery({
+    queryKey: ['managers'],
+    queryFn: authService.getManagers,
+  });
+
+  const managerOptions = managers.map((m) => ({ value: m.id, label: m.name }));
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -80,23 +82,47 @@ export default function LoginPage() {
     setShowCPwd(false);
   }
 
+  const loginMutation = useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data) => {
+      login(data.user, data.token);
+      toast.success(`Welcome back, ${data.user.name.split(' ')[0]}! 👋`);
+      navigate(ROLE_DASHBOARD[data.user.role], { replace: true });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: authService.register,
+    onSuccess: (_, variables) => {
+      toast.success('Account created! You can now sign in.');
+      switchMode('login');
+      loginForm.setValue('email', variables.email);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+    },
+  });
+
   async function onLogin(data: LoginForm) {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    const mockUser = MOCK_USERS[role];
-    login({ ...mockUser, email: data.email }, 'mock-jwt-token');
-    toast.success(`Welcome back, ${mockUser.name.split(' ')[0]}! 👋`);
-    navigate(ROLE_DASHBOARD[role], { replace: true });
-    setLoading(false);
+    loginMutation.mutate({ ...data, role });
   }
 
   async function onRegister(data: RegisterForm) {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    toast.success('Account created! You can now sign in.');
-    switchMode('login');
-    loginForm.setValue('email', data.email);
-    setLoading(false);
+    if (role === 'employee' && !data.managerId) {
+      registerForm.setError('managerId', { message: 'Manager selection is required' });
+      return;
+    }
+
+    registerMutation.mutate({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role,
+      managerId: role === 'employee' ? data.managerId : undefined,
+    });
   }
 
   return (
@@ -231,7 +257,7 @@ export default function LoginPage() {
                     variant="primary"
                     size="lg"
                     fullWidth
-                    loading={loading}
+                    loading={loginMutation.isPending}
                     rightIcon={<ArrowRight size={18} />}
                     className="font-bold shadow-lg shadow-[#00E676]/20 h-11"
                   >
@@ -263,6 +289,17 @@ export default function LoginPage() {
                   error={registerForm.formState.errors.email?.message}
                   {...registerForm.register('email')}
                 />
+
+                {role === 'employee' && (
+                  <Select
+                    id="reg-manager"
+                    label="Select Manager"
+                    options={managerOptions}
+                    value={registerForm.watch('managerId') || ''}
+                    onValueChange={(v) => registerForm.setValue('managerId', v)}
+                    error={registerForm.formState.errors.managerId?.message}
+                  />
+                )}
 
                 <Input
                   id="reg-password"
@@ -308,7 +345,7 @@ export default function LoginPage() {
                     variant="primary"
                     size="lg"
                     fullWidth
-                    loading={loading}
+                    loading={registerMutation.isPending}
                     rightIcon={<CheckCircle2 size={18} />}
                     className="font-bold shadow-lg shadow-[#00E676]/20 h-11"
                   >

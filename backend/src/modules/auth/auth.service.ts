@@ -34,7 +34,7 @@ export const registerService = async (data: RegisterInput) => {
 
     // 2. Insert role profile
     if (role === "employee") {
-      await tx.insert(employees).values({ user_id: newUser.id });
+      await tx.insert(employees).values({ user_id: newUser.id, manager_id: data.managerId || null });
     } else if (role === "manager") {
       await tx.insert(managers).values({ user_id: newUser.id });
     } else if (role === "admin") {
@@ -130,4 +130,15 @@ export const changePasswordService = async (userId: string, data: ChangePassword
   });
 
   return { success: true };
+};
+
+export const getManagersService = async () => {
+  const managersList = await db.query.users.findMany({
+    where: eq(users.role, "manager"),
+    columns: {
+      id: true,
+      name: true,
+    },
+  });
+  return managersList;
 };
