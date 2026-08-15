@@ -25,6 +25,15 @@ export const getProfileService = async (userId: string) => {
   return result[0];
 };
 
+export const updateProfileService = async (userId: string, data: { name: string }) => {
+  await db
+    .update(users)
+    .set({ name: data.name })
+    .where(eq(users.id, userId));
+
+  return await getProfileService(userId);
+};
+
 // Internal helper to get manager's profile ID from user ID
 export const getManagerProfileId = async (userId: string) => {
   const manager = await db.query.managers.findFirst({

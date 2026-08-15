@@ -186,3 +186,31 @@ export const getDeptBreakdownService = async () => {
     avgStress: Number(d.avgStress).toFixed(1),
   }));
 };
+
+export const getProfileService = async (userId: string) => {
+  const result = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+    })
+    .from(users)
+    .innerJoin(admins, eq(users.id, admins.user_id))
+    .where(eq(users.id, userId));
+
+  if (!result || result.length === 0) {
+    throw new Error("Admin profile not found");
+  }
+
+  return result[0];
+};
+
+export const updateProfileService = async (userId: string, data: { name: string }) => {
+  await db
+    .update(users)
+    .set({ name: data.name })
+    .where(eq(users.id, userId));
+
+  return await getProfileService(userId);
+};

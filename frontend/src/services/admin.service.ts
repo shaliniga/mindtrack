@@ -35,4 +35,14 @@ export const adminService = {
     const response = await api.get('/admin/analytics/departments');
     return response.data.data;
   },
+
+  getProfile: async () => {
+    const response = await api.get('/admin/me');
+    return response.data.data;
+  },
+
+  updateProfile: async (data: any) => {
+    const response = await api.put('/admin/me', data);
+    return response.data.data;
+  },
 };

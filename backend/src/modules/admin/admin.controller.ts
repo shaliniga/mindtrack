@@ -7,6 +7,8 @@ import {
   getOrgStatsService,
   getOrgMoodTrendService,
   getDeptBreakdownService,
+  getProfileService,
+  updateProfileService,
 } from "./admin.service";
 import { CreateUserSchema, UpdateRoleSchema, UpdateStatusSchema } from "../../schema/admin.schema";
 import { sendSuccess, sendError } from "../../utils/response";
@@ -88,6 +90,30 @@ export const getDeptBreakdown = async (req: Request, res: Response) => {
   try {
     const breakdown = await getDeptBreakdownService();
     return sendSuccess(res, breakdown, "Department breakdown retrieved successfully");
+  } catch (error: any) {
+    return sendError(res, error.message, 400);
+  }
+};
+
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return sendError(res, "Unauthorized", 401);
+    const profile = await getProfileService(req.user.userId);
+    return sendSuccess(res, profile, "Profile retrieved successfully");
+  } catch (error: any) {
+    return sendError(res, error.message, 404);
+  }
+};
+
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return sendError(res, "Unauthorized", 401);
+    const { name } = req.body;
+    if (!name || typeof name !== "string" || name.trim().length < 2) {
+      return sendError(res, "Invalid profile name", 400);
+    }
+    const profile = await updateProfileService(req.user.userId, { name });
+    return sendSuccess(res, profile, "Profile updated successfully");
   } catch (error: any) {
     return sendError(res, error.message, 400);
   }

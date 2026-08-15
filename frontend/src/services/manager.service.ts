@@ -20,4 +20,14 @@ export const managerService = {
     const response = await api.get(`/managers/me/team/${employeeId}`);
     return response.data.data;
   },
+
+  getProfile: async () => {
+    const response = await api.get('/managers/me');
+    return response.data.data;
+  },
+
+  updateProfile: async (data: any) => {
+    const response = await api.put('/managers/me', data);
+    return response.data.data;
+  },
 };

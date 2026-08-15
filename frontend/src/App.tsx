@@ -17,11 +17,13 @@ const EmployeeProfile   = lazy(() => import('@/pages/employee/EmployeeProfile'))
 const ManagerDashboard = lazy(() => import('@/pages/manager/ManagerDashboard'));
 const MemberDetail     = lazy(() => import('@/pages/manager/MemberDetail'));
 const ManagerAlerts    = lazy(() => import('@/pages/manager/ManagerAlerts'));
+const ManagerProfile   = lazy(() => import('@/pages/manager/ManagerProfile'));
 
 // ─── Admin ────────────────────────────────────────────────
 const AdminDashboard  = lazy(() => import('@/pages/admin/AdminDashboard'));
 const UserManagement  = lazy(() => import('@/pages/admin/UserManagement'));
 const AdminAnalytics  = lazy(() => import('@/pages/admin/AdminAnalytics'));
+const AdminProfile    = lazy(() => import('@/pages/admin/AdminProfile'));
 
 // ─── Page Loader ──────────────────────────────────────────
 function PageLoader() {
@@ -86,6 +88,9 @@ function App() {
           <Route path="/manager/alerts" element={
             <ProtectedRoute><RoleGuard requiredRole="manager"><ManagerAlerts /></RoleGuard></ProtectedRoute>
           } />
+          <Route path="/manager/profile" element={
+            <ProtectedRoute><RoleGuard requiredRole="manager"><ManagerProfile /></RoleGuard></ProtectedRoute>
+          } />
 
           {/* Admin — protected + role guard */}
           <Route path="/admin/dashboard" element={
@@ -96,6 +101,9 @@ function App() {
           } />
           <Route path="/admin/analytics" element={
             <ProtectedRoute><RoleGuard requiredRole="admin"><AdminAnalytics /></RoleGuard></ProtectedRoute>
+          } />
+          <Route path="/admin/profile" element={
+            <ProtectedRoute><RoleGuard requiredRole="admin"><AdminProfile /></RoleGuard></ProtectedRoute>
           } />
 
           {/* Redirects */}

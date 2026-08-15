@@ -7,6 +7,8 @@ import {
   getOrgStats,
   getOrgMoodTrend,
   getDeptBreakdown,
+  getProfile,
+  updateProfile,
 } from "./admin.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { requireRole } from "../../middleware/role.middleware";
@@ -16,6 +18,10 @@ const router = Router();
 // All admin routes require authentication and the 'admin' role
 router.use(authMiddleware);
 router.use(requireRole(["admin"]));
+
+// Admin Profile
+router.get("/me", getProfile);
+router.put("/me", updateProfile);
 
 // User Management
 /** @openapi

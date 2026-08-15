@@ -3,18 +3,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { User, Key, Shield, Building, Briefcase, Mail, Eye, EyeOff } from 'lucide-react';
+import { User, Key, Shield, Mail, Eye, EyeOff } from 'lucide-react';
 import { Button, Card, Input, PageHeader } from '@/components';
-import { EmployeeLayout } from '@/layouts';
+import { ManagerLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { employeeService } from '@/services/employee.service';
+import { managerService } from '@/services/manager.service';
 import { authService } from '@/services/auth.service';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Full name must be at least 2 characters'),
-  department: z.string().min(2, 'Department is required'),
-  job_title: z.string().min(2, 'Job title is required'),
 });
 
 const passwordSchema = z.object({
@@ -29,7 +27,7 @@ const passwordSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
 
-export default function EmployeeProfile() {
+export default function ManagerProfile() {
   const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
 
@@ -39,7 +37,7 @@ export default function EmployeeProfile() {
 
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: user?.name ?? '', department: 'Engineering', job_title: 'Software Engineer' },
+    defaultValues: { name: user?.name ?? '' },
   });
 
   const pwdForm = useForm<PasswordForm>({
@@ -48,24 +46,22 @@ export default function EmployeeProfile() {
   });
 
   const { data: profile } = useQuery({
-    queryKey: ['employee', 'profile'],
-    queryFn: employeeService.getProfile,
+    queryKey: ['manager', 'profile'],
+    queryFn: managerService.getProfile,
   });
 
   useEffect(() => {
     if (profile) {
       profileForm.reset({
         name: profile.name || user?.name || '',
-        department: profile.department || '',
-        job_title: profile.job_title || '',
       });
     }
   }, [profile, user, profileForm.reset]);
 
   const profileMutation = useMutation({
-    mutationFn: employeeService.updateProfile,
+    mutationFn: managerService.updateProfile,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['employee', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'profile'] });
       updateUser({ name: data.name });
       toast.success('Account profile details updated successfully');
     },
@@ -98,14 +94,14 @@ export default function EmployeeProfile() {
 
   const initials = user?.name
     ? (user.name[0] + (user.name.split(' ')[1]?.[0] ?? '')).toUpperCase()
-    : 'U';
+    : 'M';
 
   return (
-    <EmployeeLayout>
+    <ManagerLayout>
       <div className="flex w-full flex-col gap-6 animate-fadeIn">
         <PageHeader
           title="Account & Profile Settings"
-          subtitle="Manage your personal information, department designation, and security credentials"
+          subtitle="Manage your personal information, display settings, and security credentials"
         />
 
         {/* ── User Overview Hero Banner ── */}
@@ -118,7 +114,7 @@ export default function EmployeeProfile() {
               <div className="flex items-center gap-4 flex-wrap">
                 <h2 className="text-xl font-bold text-zinc-900 m-0">{user?.name}</h2>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8FDF5] text-[#00C853]">
-                  <Shield size={12} /> Active Employee
+                  <Shield size={12} /> Active Manager
                 </span>
               </div>
               <span className="text-sm text-zinc-500 flex items-center gap-1.5">
@@ -128,7 +124,7 @@ export default function EmployeeProfile() {
           </div>
         </Card>
 
-        {/* ── Two-Column Forms Grid (gap-6) ── */}
+        {/* ── Two-Column Forms Grid ── */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
           {/* Profile Information Card */}
@@ -139,7 +135,7 @@ export default function EmployeeProfile() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-zinc-900 m-0">Personal Profile</h3>
-                <p className="text-xs text-zinc-500 m-0 mt-0.5">Your official company directory details</p>
+                <p className="text-xs text-zinc-500 m-0 mt-0.5">Your official account display settings</p>
               </div>
             </div>
 
@@ -150,22 +146,6 @@ export default function EmployeeProfile() {
                 leftIcon={<User size={16} />}
                 error={profileForm.formState.errors.name?.message}
                 {...profileForm.register('name')}
-              />
-
-              <Input
-                label="Department"
-                placeholder="Engineering"
-                leftIcon={<Building size={16} />}
-                error={profileForm.formState.errors.department?.message}
-                {...profileForm.register('department')}
-              />
-
-              <Input
-                label="Job Designation"
-                placeholder="Software Engineer"
-                leftIcon={<Briefcase size={16} />}
-                error={profileForm.formState.errors.job_title?.message}
-                {...profileForm.register('job_title')}
               />
 
               <div className="pt-4 border-t border-zinc-100 flex justify-end">
@@ -268,6 +248,6 @@ export default function EmployeeProfile() {
 
         </div>
       </div>
-    </EmployeeLayout>
+    </ManagerLayout>
   );
 }

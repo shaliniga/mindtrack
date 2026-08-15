@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getProfile,
+  updateProfile,
   getTeamMembers,
   getTeamStats,
   getTeamTrend,
@@ -22,6 +23,7 @@ router.use(requireRole(["manager"]));
  *     security: [{ bearerAuth: [] }]
  */
 router.get("/me", getProfile);
+router.put("/me", updateProfile);
 /** @openapi
  * /api/v1/managers/me/team:
  *   get:
