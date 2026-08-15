@@ -31,6 +31,9 @@ export const getAlertsService = async (userId: string, role: string) => {
     // Managers see only their team's alerts
     const managerProfileId = await getManagerProfileId(userId);
     return await selectQuery.where(eq(alerts.manager_id, managerProfileId));
+  } else if (role === "employee") {
+    // Employees see only their own alerts
+    return await selectQuery.where(eq(users.id, userId));
   } else {
     throw new Error("Unauthorized to view alerts");
   }

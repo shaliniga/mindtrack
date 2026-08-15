@@ -5,9 +5,8 @@ import { requireRole } from "../../middleware/role.middleware";
 
 const router = Router();
 
-// Alerts are accessible by managers and admins
+// Alerts routing rules
 router.use(authMiddleware);
-router.use(requireRole(["manager", "admin"]));
 
 /**
  * @openapi
@@ -21,7 +20,7 @@ router.use(requireRole(["manager", "admin"]));
  *       200:
  *         description: Success
  */
-router.get("/", getAlerts);
+router.get("/", requireRole(["employee", "manager", "admin"]), getAlerts);
 
 /**
  * @openapi
@@ -41,7 +40,7 @@ router.get("/", getAlerts);
  *       200:
  *         description: Success
  */
-router.put("/:id/resolve", resolveAlert);
+router.put("/:id/resolve", requireRole(["manager", "admin"]), resolveAlert);
 
 /**
  * @openapi
@@ -61,6 +60,6 @@ router.put("/:id/resolve", resolveAlert);
  *       200:
  *         description: Success
  */
-router.put("/:id/dismiss", dismissAlert);
+router.put("/:id/dismiss", requireRole(["manager", "admin"]), dismissAlert);
 
 export default router;

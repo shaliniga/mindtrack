@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { User, Key, Shield, Building, Briefcase, Mail } from 'lucide-react';
+import { User, Key, Shield, Building, Briefcase, Mail, Eye, EyeOff } from 'lucide-react';
 import { Button, Card, Input, PageHeader } from '@/components';
 import { EmployeeLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,29 +12,33 @@ import { employeeService } from '@/services/employee.service';
 import { authService } from '@/services/auth.service';
 
 const profileSchema = z.object({
-  name:       z.string().min(2, 'Full name must be at least 2 characters'),
+  name: z.string().min(2, 'Full name must be at least 2 characters'),
   department: z.string().min(2, 'Department is required'),
-  jobTitle:   z.string().min(2, 'Job title is required'),
+  job_title: z.string().min(2, 'Job title is required'),
 });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(6, 'Enter your current password'),
-  newPassword:     z.string().min(6, 'New password must be at least 6 characters'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
 });
 
-type ProfileForm  = z.infer<typeof profileSchema>;
+type ProfileForm = z.infer<typeof profileSchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function EmployeeProfile() {
   const { user, updateUser } = useAuthStore();
 
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: user?.name ?? '', department: 'Engineering', jobTitle: 'Software Engineer' },
+    defaultValues: { name: user?.name ?? '', department: 'Engineering', job_title: 'Software Engineer' },
   });
 
   const pwdForm = useForm<PasswordForm>({
@@ -50,9 +54,9 @@ export default function EmployeeProfile() {
   useEffect(() => {
     if (profile) {
       profileForm.reset({
-        name: profile.user?.name || user?.name || '',
+        name: profile.name || user?.name || '',
         department: profile.department || '',
-        jobTitle: profile.job_title || '',
+        job_title: profile.job_title || '',
       });
     }
   }, [profile, user, profileForm.reset]);
@@ -118,7 +122,6 @@ export default function EmployeeProfile() {
               <span className="text-sm text-zinc-500 flex items-center gap-1.5">
                 <Mail size={14} className="text-zinc-400" /> {user?.email}
               </span>
-              <span className="text-xs text-zinc-400 mt-0.5">Member since January 2026</span>
             </div>
           </div>
         </Card>
@@ -159,8 +162,8 @@ export default function EmployeeProfile() {
                 label="Job Designation"
                 placeholder="Software Engineer"
                 leftIcon={<Briefcase size={16} />}
-                error={profileForm.formState.errors.jobTitle?.message}
-                {...profileForm.register('jobTitle')}
+                error={profileForm.formState.errors.job_title?.message}
+                {...profileForm.register('job_title')}
               />
 
               <div className="pt-4 border-t border-zinc-100 flex justify-end">
@@ -192,27 +195,57 @@ export default function EmployeeProfile() {
             <form onSubmit={pwdForm.handleSubmit(onPwdSubmit)} className="flex flex-col gap-6">
               <Input
                 label="Current Password"
-                type="password"
+                type={showCurrentPwd ? 'text' : 'password'}
                 placeholder="••••••••"
                 leftIcon={<Key size={16} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPwd((p) => !p)}
+                    className="p-1 text-zinc-400 hover:text-zinc-700 bg-transparent border-none cursor-pointer flex items-center transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showCurrentPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
                 error={pwdForm.formState.errors.currentPassword?.message}
                 {...pwdForm.register('currentPassword')}
               />
 
               <Input
                 label="New Password"
-                type="password"
+                type={showNewPwd ? 'text' : 'password'}
                 placeholder="Min 6 characters"
                 leftIcon={<Key size={16} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPwd((p) => !p)}
+                    className="p-1 text-zinc-400 hover:text-zinc-700 bg-transparent border-none cursor-pointer flex items-center transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
                 error={pwdForm.formState.errors.newPassword?.message}
                 {...pwdForm.register('newPassword')}
               />
 
               <Input
                 label="Confirm New Password"
-                type="password"
+                type={showConfirmPwd ? 'text' : 'password'}
                 placeholder="Re-enter new password"
                 leftIcon={<Key size={16} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPwd((p) => !p)}
+                    className="p-1 text-zinc-400 hover:text-zinc-700 bg-transparent border-none cursor-pointer flex items-center transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                }
                 error={pwdForm.formState.errors.confirmPassword?.message}
                 {...pwdForm.register('confirmPassword')}
               />

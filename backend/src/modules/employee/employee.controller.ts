@@ -18,7 +18,9 @@ export const updateProfile = async (req: Request, res: Response) => {
   try {
     if (!req.user) return sendError(res, "Unauthorized", 401);
 
+    console.log("INCOMING PROFILE REQ BODY:", req.body);
     const data = UpdateProfileSchema.parse(req.body);
+    console.log("PARSED PROFILE DATA:", data);
     const updatedProfile = await updateProfileService(req.user.userId, data);
     
     return sendSuccess(res, updatedProfile, "Profile updated successfully", 200);

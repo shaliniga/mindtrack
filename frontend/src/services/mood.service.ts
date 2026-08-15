@@ -2,7 +2,15 @@ import api from './api';
 
 export const moodService = {
   logMood: async (data: any) => {
-    const response = await api.post('/mood', data);
+    const payload = {
+      mood_score: data.moodScore,
+      stress_level: data.stressLevel,
+      energy_level: data.energyLevel,
+      sleep_hours: data.sleepHours,
+      sleep_quality: data.sleepQuality,
+      notes: data.notes,
+    };
+    const response = await api.post('/mood', payload);
     return response.data.data;
   },
 
@@ -12,7 +20,15 @@ export const moodService = {
   },
 
   updateMood: async (id: string, data: any) => {
-    const response = await api.put(`/mood/${id}`, data);
+    const payload = {
+      mood_score: data.moodScore,
+      stress_level: data.stressLevel,
+      energy_level: data.energyLevel,
+      sleep_hours: data.sleepHours,
+      sleep_quality: data.sleepQuality,
+      notes: data.notes,
+    };
+    const response = await api.put(`/mood/${id}`, payload);
     return response.data.data;
   },
 
