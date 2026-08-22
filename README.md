@@ -44,9 +44,9 @@ https://mindtrack-03h8.onrender.com
 ## 🛠️ Tech Stack
 
 ### Frontend
-* **Core:** React 18, TypeScript, Vite
+* **Core:** React 19, TypeScript, Vite
 * **State & Query Management:** `@tanstack/react-query` (React Query), Zustand (with session persistence)
-* **Styling:** Vanilla CSS & TailwindCSS (Light theme layout)
+* **Styling:** TailwindCSS (Light theme layout)
 * **Forms & Validation:** `react-hook-form` + `@hookform/resolvers` + Zod
 * **Charts:** Recharts (Area, Line, and Bar charts)
 
